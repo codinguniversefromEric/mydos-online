@@ -36,3 +36,6 @@ end $$;
 create trigger guestbook_flood
   before insert on public.guestbook
   for each row execute function public.guestbook_flood_guard();
+
+-- 5. 叫 Supabase 的 API 立刻認得這張新表（不然可能要等一下，期間會回 404）
+notify pgrst, 'reload schema';

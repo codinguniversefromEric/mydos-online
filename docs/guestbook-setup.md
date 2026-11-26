@@ -116,7 +116,7 @@ window.MYDOS_GUESTBOOK = {
 | --- | --- |
 | 留言簿視窗寫「還沒有設定」 | `guestbook-config.js` 沒填，或還沒部署 |
 | `could not send (HTTP 401)` | 金鑰貼錯，或貼成 secret key |
-| `could not send (HTTP 404)` | SQL 沒有執行成功，資料表不存在 |
+| `could not send (HTTP 404)` | 資料表不存在：SQL 還沒執行；執行過的話，在 SQL Editor 跑 `notify pgrst, 'reload schema';`，並確認 Data API 的 Exposed schemas 有 `public` |
 | `could not send (HTTP 400)` | 留言太長或含不允許的字元 |
 | 留言送得出去，重新整理卻看不到 | 讀取的 select 權限沒設好，重新執行一次 SQL |
 | 中文在 MYDOS 裡顯示成 `?` | 正常：MYDOS 的字型只有 ASCII，中文請看桌面的「留言簿」視窗 |

@@ -112,6 +112,8 @@ docs/               每個里程碑的教學
 
 | 里程碑 | 版本 | 內容 |
 | --- | --- | --- |
+| [1](docs/milestone1-tutorial.md) | v0.1 | 開發環境、Limine 開機、framebuffer 畫字、COM1 |
+| [2](docs/milestone2-tutorial.md) | v0.2 | 文字終端、捲動、kprintf、自動編譯的 Makefile |
 | [3](docs/milestone3-tutorial.md) | v0.3 | GDT、IDT、例外、PIC、鍵盤、命令列 |
 | [4](docs/milestone4-tutorial.md) | v0.4 | 實體記憶體、分頁、kmalloc、LAPIC |
 | [5](docs/milestone5-tutorial.md) | v0.5 | PIT 計時器、RTC、狀態列時鐘 |
