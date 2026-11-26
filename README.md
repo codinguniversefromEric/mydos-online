@@ -1,6 +1,10 @@
+<p align="center"><img src="web/og-image.png" alt="MYDOS 1.0" width="720"></p>
+
 # MYDOS
 
 **MYDOS 1.0** — 一個從零開始、用 C 寫的 DOS 風格作業系統，為人類和 AI 一起設計。
+
+**▶ [直接在瀏覽器開機](https://codinguniversefromeric.github.io/mydos-online/)**
 
 ```text
 MYDOS v1.0                                         2026-11-26 14:05:03

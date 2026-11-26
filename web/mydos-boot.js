@@ -51,4 +51,5 @@ function showStatus(text, isError) {
     if (!el) return;
     el.textContent = text;
     el.className = isError ? 'error' : '';
+    if (isError && typeof setLed === 'function') setLed('err');
 }
