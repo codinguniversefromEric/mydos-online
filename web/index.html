@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MYDOS 1.0</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="vendor/xterm.css">
+<style>
+  :root { --teal: #008080; --gray: #c0c0c0; --dark: #808080; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--teal);
+    font-family: "MS Sans Serif", Tahoma, "Microsoft JhengHei", sans-serif; font-size: 14px;
+    display: flex; align-items: flex-start; justify-content: center; padding: 32px 12px;
+  }
+  .window {
+    background: var(--gray); padding: 3px; max-width: 100%;
+    border: 2px solid; border-color: #fff var(--dark) var(--dark) #fff;
+    box-shadow: 1px 1px 0 #000;
+  }
+  .title {
+    background: linear-gradient(90deg, #000080, #1084d0); color: #fff; font-weight: bold;
+    padding: 3px 6px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .title .btns span {
+    display: inline-block; width: 16px; height: 14px; margin-left: 2px; background: var(--gray);
+    border: 1px solid; border-color: #fff #000 #000 #fff; color: #000; font-size: 10px;
+    line-height: 12px; text-align: center;
+  }
+  .screen { background: #000; padding: 6px; margin-top: 3px; border: 2px solid; border-color: var(--dark) #fff #fff var(--dark); }
+  #terminal { min-height: 400px; }
+  .statusbar { display: flex; gap: 3px; margin-top: 3px; }
+  .statusbar div { flex: 1; padding: 2px 6px; border: 1px solid; border-color: var(--dark) #fff #fff var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #status.error { color: #a00; font-weight: bold; }
+  .help { max-width: 820px; margin-top: 8px; padding: 6px 8px; line-height: 1.6; }
+  .help code { background: #fff; padding: 0 3px; border: 1px solid var(--dark); }
+  a { color: #000080; }
+</style>
+</head>
+<body>
+<div>
+  <div class="window">
+    <div class="title"><span>MYDOS Prompt</span><span class="btns"><span>_</span><span>□</span><span>×</span></span></div>
+    <div class="screen"><div id="terminal"></div></div>
+    <div class="statusbar">
+      <div id="status">Loading QEMU (about 40 MB, first time only)…</div>
+      <div style="flex:0 0 auto">x86-64 · QEMU Wasm</div>
+    </div>
+  </div>
+  <div class="window help">
+    <b>MYDOS</b> 是一個從零開始用 C 寫的 64 位元 DOS 風格作業系統。這個網頁在瀏覽器裡用 QEMU 模擬一台真正的 PC 來開機，不是假的畫面。<br>
+    點一下黑色畫面再打字。試試：<code>HELP</code>　<code>DIR \BIN</code>　<code>DEMO Ada</code>　<code>GUESS</code>　<code>LIFE</code>　<code>CRASH</code>　<code>COPY CON NOTE.TXT</code>（Ctrl+Z、Enter 結束）。↑ ↓ 叫回之前的指令。<br>
+    C 槽的變更只存在這個分頁裡，重新整理就會還原；當機（例如打 <code>PANIC</code>）時也是重新整理就重開機。建議使用電腦版 Chrome 或 Edge。
+  </div>
+</div>
+
+<!-- 必須放在網站根目錄：Service Worker 只能管自己所在資料夾以下的網頁 -->
+<script src="coi-serviceworker.js"></script>
+<script src="vendor/xterm.js"></script>
+<script src="vendor/xterm-pty.js"></script>
+<script src="mydos-boot.js"></script>
+<script src="qemu/load-rom.js"></script>
+<script type="module">
+  if (!window.crossOriginIsolated) {
+    showStatus('Preparing the page (it may reload once)…');
+  } else {
+    const term = new Terminal({
+      cols: 80, rows: 30, cursorBlink: true,
+      fontFamily: '"Cascadia Mono", Consolas, "Courier New", monospace', fontSize: 15,
+      theme: { background: '#000000', foreground: '#c0c0c0' },
+    });
+    term.open(document.getElementById('terminal'));
+    term.focus();
+    window.mydosTerm = term;            // 方便在開發者工具裡除錯
+    const { master, slave } = openpty();
+    term.loadAddon(master);
+    Module.pty = slave;
+
+    showStatus('Starting the virtual PC…');
+    const { default: init } = await import(new URL('qemu/out.js', document.baseURI).href);
+    await init(Module);
+    // xterm-pty 的小修正（跟 QEMU Wasm 官方示範相同）：沒有輸入時不要讓 poll 卡住
+    const oldPoll = Module.TTY.stream_ops.poll;
+    Module.TTY.stream_ops.poll = function (stream, timeout) {
+      if (!slave.readable) return (slave.readable ? 1 : 0) | (slave.writable ? 4 : 0);
+      return oldPoll.call(stream, timeout);
+    };
+    showStatus('Running. Click the screen and type.');
+  }
+</script>
+</body>
+</html>

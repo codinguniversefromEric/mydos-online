@@ -1,0 +1,10 @@
+build/
+iso/
+*.iso
+disk.img
+limine/
+limine-protocol/
+user/build/
+web/qemu/
+web/mydos.iso.gz
+web/disk.img.gz

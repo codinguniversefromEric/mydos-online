@@ -1,0 +1,47 @@
+# 每次 push 到 main：建置 MYDOS → 組成網頁版 → 部署到 GitHub Pages
+# 第一次使用前，到 repo 的 Settings → Pages，把 Source 設成「GitHub Actions」
+name: Deploy MYDOS to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:          # 也可以在 Actions 頁面手動按「Run workflow」
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential xorriso dosfstools mtools
+
+      - name: Build MYDOS and the web page
+        run: make web
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
