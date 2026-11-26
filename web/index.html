@@ -96,6 +96,14 @@
   .paper .muted { color: #555; font-size: 12px; }
   .paper a { color: var(--navy); }
 
+  /* ---- 最大化：鋪滿桌面 ---- */
+  .window.max { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important;
+    transform: none !important; display: flex; flex-direction: column; }
+  .window.max .titlebar { cursor: default; }
+  .window.max .screen { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .window.max .paper { flex: 1; max-height: none; }
+  .window.max #gb-list { flex: 1; height: auto; }
+
   /* ---- 留言簿 ---- */
   #guestbook { width: 400px; }
   #gb-list { background: #fff; padding: 8px 10px; height: min(52vh, 420px); overflow-y: auto; font-size: 13px; line-height: 1.55; }
@@ -167,7 +175,7 @@
       <img src="favicon.svg" alt="">
       <span class="name">MYDOS Prompt</span>
       <button type="button" class="raised" data-min="mydos" title="Minimize">_</button>
-      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" title="Maximize" data-max="mydos">□</button>
       <button type="button" class="raised" data-min="mydos" title="Close">×</button>
     </div>
     <div class="menubar" aria-hidden="true">
@@ -186,7 +194,7 @@
       <span class="glyph" aria-hidden="true"></span>
       <span class="name">README.TXT - Notepad</span>
       <button type="button" class="raised" data-min="readme" title="Minimize">_</button>
-      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" title="Maximize" data-max="readme">□</button>
       <button type="button" class="raised" data-min="readme" title="Close">×</button>
     </div>
     <div class="paper sunken">
@@ -207,7 +215,7 @@
       <span class="glyph book" aria-hidden="true"></span>
       <span class="name">GUESTBOOK - 留言簿</span>
       <button type="button" class="raised" data-min="guestbook" title="Minimize">_</button>
-      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" title="Maximize" data-max="guestbook">□</button>
       <button type="button" class="raised" data-min="guestbook" title="Close">×</button>
     </div>
     <div id="gb-list" class="sunken">載入中…</div>
@@ -294,11 +302,26 @@
     w.style.top  = Math.min(Math.max(0, w.offsetTop),  maxY) + 'px';
   }
 
+  // 最大化／還原（按 □ 或雙擊標題列）
+  function toggleMax(id) {
+    const w = win(id);
+    const max = w.classList.toggle('max');
+    const btn = w.querySelector('[data-max]');
+    btn.textContent = max ? '❐' : '□';
+    btn.title = max ? 'Restore' : 'Maximize';
+    if (id === 'mydos') layoutDesktop(window.mydosTerm || null);   // 終端機字級跟著重算
+    else if (!max) clampWin(w);
+    focusWin(id);
+    if (id === 'mydos' && window.mydosTerm) window.mydosTerm.focus();
+  }
+  document.querySelectorAll('[data-max]').forEach((b) => b.addEventListener('click', () => toggleMax(b.dataset.max)));
+
   document.querySelectorAll('.window').forEach((w) => {
     w.addEventListener('pointerdown', () => focusWin(w.id));
     const bar = w.querySelector('.titlebar');
+    bar.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) toggleMax(w.id); });
     bar.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('button')) return;
+      if (e.target.closest('button') || w.classList.contains('max')) return;
       const dx = e.clientX - w.offsetLeft, dy = e.clientY - w.offsetTop;
       bar.setPointerCapture(e.pointerId);
       const move = (ev) => {
@@ -338,6 +361,17 @@
   // ===== 版面：終端機字級自動縮放，讓 80×30 剛好放進桌面 =====
   window.layoutDesktop = function (term) {
     const mydos = win('mydos'), readme = win('readme');
+    if (mydos.classList.contains('max')) {                 // 最大化：找出塞得進整個畫面的最大字級
+      if (term) {
+        const screen = mydos.querySelector('.screen');
+        const xs = mydos.querySelector('.xterm-screen');
+        for (let fs = 40; fs >= 9; fs--) {
+          term.options.fontSize = fs;
+          if (xs.offsetWidth <= screen.clientWidth - 8 && xs.offsetHeight <= screen.clientHeight - 8) break;
+        }
+      }
+      return;
+    }
     const narrow = desk.clientWidth < 640;
     const leftPad = narrow ? 4 : 96;                      // 左邊留給桌面圖示
     const availW = desk.clientWidth - leftPad - 8;

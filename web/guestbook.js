@@ -10,7 +10,8 @@
 const Guestbook = (() => {
     const cfg = window.MYDOS_GUESTBOOK || {};
     const enabled = !!(cfg.url && cfg.anonKey);
-    const api = enabled ? cfg.url.replace(/\/+$/, '') + '/rest/v1/guestbook' : '';
+    // 網址只要專案根目錄；就算多貼了 /rest/v1/ 也自動去掉
+    const api = enabled ? cfg.url.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '') + '/rest/v1/guestbook' : '';
     // 新版 publishable key（sb_publishable_...）只能放在 apikey 標頭；
     // 舊版 anon key 是 JWT（eyJ 開頭），才另外放進 Authorization
     const headers = !enabled ? {} : cfg.anonKey.startsWith('eyJ')
