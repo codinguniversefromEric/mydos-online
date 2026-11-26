@@ -53,7 +53,7 @@
 
   /* ---- 視窗 ---- */
   .window { position: absolute; background: var(--gray); padding: 2px; z-index: 2; }
-  .window.hidden { display: none; }
+  .window.hidden { display: none !important; }   /* 要贏過最大化的 display: flex */
   .titlebar {
     display: flex; align-items: center; gap: 5px; padding: 3px 3px 3px 4px; color: #fff; font-weight: bold;
     background: linear-gradient(90deg, #808080, #b5b5b5); cursor: default; user-select: none; touch-action: none;
