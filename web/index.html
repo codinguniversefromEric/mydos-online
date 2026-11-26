@@ -24,160 +24,214 @@
 <style>
   :root {
     --teal: #008080; --gray: #c0c0c0; --dark: #808080; --navy: #000080;
-    --hi: #ffffff; --lo: #404040;
+    --hi: #ffffff; --lo: #404040; --taskbar: 32px;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
+  /* 桌面就是整個視窗：固定大小、不能捲動 */
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
   body {
-    margin: 0; background: var(--teal); color: #000;
+    background: var(--teal); color: #000;
     font-family: Tahoma, "MS Sans Serif", "Microsoft JhengHei", "PingFang TC", sans-serif; font-size: 13px;
-    overflow-x: hidden;
   }
 
   /* ---- 3D 邊框：Win95 的靈魂 ---- */
   .raised { border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); box-shadow: inset -1px -1px var(--dark), inset 1px 1px #dfdfdf; }
   .sunken { border: 2px solid; border-color: var(--dark) var(--hi) var(--hi) var(--dark); box-shadow: inset 1px 1px var(--lo); }
+  .pressed { border-color: var(--lo) var(--hi) var(--hi) var(--lo) !important; box-shadow: inset 1px 1px var(--dark) !important; }
 
   /* ---- 桌面 ---- */
-  .desktop {
-    min-height: calc(100vh - 36px); padding: 24px 16px 56px;
-    display: grid; grid-template-columns: 84px 1fr; gap: 16px; align-items: start;
-  }
-  .icons { display: flex; flex-direction: column; gap: 18px; padding-top: 4px; }
-  .icon { width: 80px; text-align: center; color: #fff; text-decoration: none; cursor: default; user-select: none; }
-  .icon img, .icon .glyph { width: 40px; height: 40px; display: block; margin: 0 auto 4px; image-rendering: pixelated; }
-  .icon span { display: inline-block; padding: 1px 3px; font-size: 12px; line-height: 1.3; }
-  .icon:hover span, .icon:focus span { background: var(--navy); outline: 1px dotted #fff; }
+  .desktop { position: fixed; left: 0; right: 0; top: 0; bottom: var(--taskbar); overflow: hidden; }
+  .icons { position: absolute; left: 10px; top: 12px; display: flex; flex-direction: column; gap: 16px; z-index: 1; }
+  .icon { width: 76px; text-align: center; color: #fff; text-decoration: none; cursor: default; user-select: none;
+    background: none; border: 0; padding: 0; font: inherit; }
+  .icon img, .icon .glyph { width: 36px; height: 36px; display: block; margin: 0 auto 4px; }
+  .icon span.label { display: inline-block; padding: 1px 3px; font-size: 12px; line-height: 1.3; }
+  .icon:hover span.label, .icon:focus span.label { background: var(--navy); outline: 1px dotted #fff; }
   .glyph { background: #fff; border: 1px solid #000; position: relative; }
-  .glyph::before { content: ""; position: absolute; left: 6px; right: 6px; top: 8px; height: 2px; background: #000;
-    box-shadow: 0 6px #000, 0 12px #000, 0 18px #000; }
-
-  .stack { display: flex; flex-direction: column; gap: 14px; align-items: center; min-width: 0; }
+  .glyph::before { content: ""; position: absolute; left: 18%; right: 18%; top: 24%; height: 2px; background: #000;
+    box-shadow: 0 5px #000, 0 10px #000, 0 15px #000; }
 
   /* ---- 視窗 ---- */
-  .window { background: var(--gray); padding: 2px; max-width: 100%; }
+  .window { position: absolute; background: var(--gray); padding: 2px; z-index: 2; }
+  .window.hidden { display: none; }
   .titlebar {
-    display: flex; align-items: center; gap: 6px; padding: 3px 3px 3px 4px; color: #fff; font-weight: bold;
-    background: linear-gradient(90deg, var(--navy), #1084d0);
+    display: flex; align-items: center; gap: 5px; padding: 3px 3px 3px 4px; color: #fff; font-weight: bold;
+    background: linear-gradient(90deg, #808080, #b5b5b5); cursor: default; user-select: none; touch-action: none;
   }
-  .titlebar img { width: 16px; height: 16px; }
+  .window.active .titlebar { background: linear-gradient(90deg, var(--navy), #1084d0); }
+  .titlebar img, .titlebar .glyph { width: 16px; height: 16px; flex: none; }
   .titlebar .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .titlebar .btn {
-    width: 16px; height: 14px; background: var(--gray); color: #000; font: bold 10px/10px Tahoma, sans-serif;
-    display: grid; place-items: center; padding: 0;
+  .titlebar button {
+    width: 16px; height: 14px; padding: 0; background: var(--gray); color: #000; font: bold 10px/10px Tahoma, sans-serif;
+    display: grid; place-items: center; cursor: pointer;
   }
-  .menubar { display: flex; gap: 2px; padding: 2px 2px 3px; }
+  .titlebar button:active { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+  .menubar { display: flex; gap: 2px; padding: 2px 2px 3px; user-select: none; }
   .menubar span { padding: 1px 6px; }
   .menubar span u { text-decoration: underline; }
 
-  .screen { background: #000; padding: 6px; }
-  #terminal { min-height: 470px; }
-
+  .screen { background: #000; padding: 4px; }
   .statusbar { display: flex; gap: 2px; margin-top: 2px; }
   .statusbar > div { padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .statusbar .grow { flex: 1; }
+  .statusbar .grow { flex: 1; min-width: 0; }
   #status.error { color: #a00; font-weight: bold; }
-  .led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #a0a000; margin-right: 6px; vertical-align: 0; box-shadow: inset -1px -1px rgba(0,0,0,.4); }
+  .led { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #c8c800; margin-right: 6px; box-shadow: inset -1px -1px rgba(0,0,0,.4); }
   .led.on { background: #20e020; }
   .led.err { background: #e02020; }
 
-  /* ---- 說明視窗（像記事本） ---- */
-  .notepad { width: 100%; max-width: 760px; }
+  /* ---- README.TXT（記事本） ---- */
+  #readme { width: 380px; }
   .paper {
-    background: #fff; padding: 10px 14px; line-height: 1.75; font-size: 14px;
+    background: #fff; padding: 10px 12px; line-height: 1.7; font-size: 13px; overflow-y: auto; max-height: 60vh;
     font-family: "Cascadia Mono", Consolas, "Courier New", "Microsoft JhengHei", monospace;
   }
-  .paper h1 { font-size: 15px; margin: 0 0 6px; }
+  .paper h1 { font-size: 14px; margin: 0 0 6px; }
   .paper p { margin: 0 0 8px; }
   .paper kbd {
     display: inline-block; padding: 0 5px; margin: 1px 0; font: 12px Tahoma, sans-serif; background: var(--gray);
-    border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); cursor: pointer;
+    border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi);
   }
-  .paper kbd:active { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
-  .paper .muted { color: #555; font-size: 13px; }
+  .paper kbd[data-cmd] { cursor: pointer; }
+  .paper kbd[data-cmd]:active { border-color: var(--lo) var(--hi) var(--hi) var(--lo); }
+  .paper .muted { color: #555; font-size: 12px; }
   .paper a { color: var(--navy); }
+
+  /* ---- 留言簿 ---- */
+  #guestbook { width: 400px; }
+  #gb-list { background: #fff; padding: 8px 10px; height: min(52vh, 420px); overflow-y: auto; font-size: 13px; line-height: 1.55; }
+  .gb-entry { padding: 6px 0; border-bottom: 1px dotted var(--dark); word-break: break-word; }
+  .gb-entry:last-child { border-bottom: 0; }
+  .gb-meta { color: #555; font-size: 12px; }
+  .gb-meta b { color: var(--navy); font-size: 13px; }
+  .gb-tip { padding: 6px 4px 2px; font-size: 12px; }
+  .gb-tip kbd { display: inline-block; padding: 0 5px; font: 12px Tahoma, sans-serif; background: var(--gray); cursor: pointer;
+    border: 2px solid; border-color: var(--hi) var(--lo) var(--lo) var(--hi); }
+  .book { background: #ffd75e !important; border-color: #000 !important; }
+  .book::before { background: #7a4b00 !important; box-shadow: none !important; top: 0 !important; bottom: 0; left: 22% !important; right: auto !important; width: 2px; height: auto !important; }
 
   /* ---- 工作列 ---- */
   .taskbar {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 32px; background: var(--gray);
-    border-top: 2px solid var(--hi); display: flex; align-items: center; gap: 4px; padding: 2px 3px; z-index: 10;
+    position: fixed; left: 0; right: 0; bottom: 0; height: var(--taskbar); background: var(--gray);
+    border-top: 2px solid var(--hi); display: flex; align-items: center; gap: 4px; padding: 2px 3px; z-index: 100;
   }
-  .start { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px; font-weight: bold; background: var(--gray); }
+  .taskbar button { font: inherit; color: #000; background: var(--gray); cursor: pointer; }
+  .start { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px; font-weight: bold !important; }
   .start img { width: 16px; height: 16px; }
-  .task { height: 24px; padding: 0 8px; display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 200px;
-    background: repeating-conic-gradient(#d4d4d4 0 25%, #e8e8e8 0 50%) 0 0 / 2px 2px; font-weight: bold; }
-  .task img { width: 16px; height: 16px; }
-  .task span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tray { margin-left: auto; height: 24px; padding: 0 10px; display: flex; align-items: center; font-variant-numeric: tabular-nums; }
+  .task { height: 24px; padding: 0 8px; display: flex; align-items: center; gap: 5px; min-width: 0; width: 170px; text-align: left; }
+  .task.on { font-weight: bold; background: repeating-conic-gradient(#d4d4d4 0 25%, #eeeeee 0 50%) 0 0 / 2px 2px; }
+  .task img, .task .glyph { width: 16px; height: 16px; flex: none; }
+  .task span.t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tray { margin-left: auto; height: 24px; padding: 0 10px; display: flex; align-items: center; font-variant-numeric: tabular-nums; flex: none; }
 
-  @media (max-width: 860px) {
-    .desktop { grid-template-columns: 1fr; }
-    .icons { flex-direction: row; justify-content: center; }
-    .screen { overflow-x: auto; }
+  /* ---- 開始選單 ---- */
+  .startmenu { position: fixed; left: 2px; bottom: calc(var(--taskbar) - 2px); background: var(--gray); padding: 2px;
+    display: flex; z-index: 200; min-width: 230px; }
+  .startmenu.hidden { display: none; }
+  .startmenu .side { width: 24px; background: linear-gradient(0deg, var(--navy), #1084d0); color: #c0c0c0;
+    writing-mode: vertical-rl; transform: rotate(180deg); font: bold 16px Tahoma, sans-serif; padding: 6px 2px; }
+  .startmenu .side b { color: #fff; }
+  .startmenu ul { list-style: none; margin: 0; padding: 2px 0; flex: 1; }
+  .startmenu li a, .startmenu li button { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 8px;
+    color: #000; text-decoration: none; font: inherit; background: none; border: 0; width: 100%; text-align: left; cursor: pointer; }
+  .startmenu li a:hover, .startmenu li button:hover { background: var(--navy); color: #fff; }
+  .startmenu li img, .startmenu li .glyph { width: 24px; height: 24px; flex: none; }
+  .startmenu hr { border: 0; border-top: 1px solid var(--dark); border-bottom: 1px solid var(--hi); margin: 2px 4px; }
+
+  @media (max-width: 640px) {
+    .icons { display: none; }
+    .task { width: auto; flex: 1; }
+    #readme, #guestbook { width: calc(100vw - 16px); }
   }
 </style>
 </head>
 <body>
 
-<main class="desktop">
+<main class="desktop" id="desktop">
   <nav class="icons" aria-label="桌面">
+    <button class="icon" type="button" data-open="readme">
+      <span class="glyph" aria-hidden="true"></span><span class="label">README.TXT</span>
+    </button>
+    <button class="icon" type="button" data-open="guestbook">
+      <span class="glyph book" aria-hidden="true"></span><span class="label">留言簿</span>
+    </button>
     <a class="icon" href="https://github.com/codinguniversefromEric/mydos-online" target="_blank" rel="noopener">
-      <img src="favicon.svg" alt=""><span>原始碼<br>(GitHub)</span>
+      <img src="favicon.svg" alt=""><span class="label">原始碼<br>(GitHub)</span>
     </a>
     <a class="icon" href="https://github.com/codinguniversefromEric/mydos-online/tree/main/docs" target="_blank" rel="noopener">
-      <span class="glyph" aria-hidden="true"></span><span>教學文件</span>
+      <span class="glyph" aria-hidden="true"></span><span class="label">教學文件</span>
     </a>
   </nav>
 
-  <div class="stack">
-    <section class="window raised" aria-label="MYDOS">
-      <div class="titlebar">
-        <img src="favicon.svg" alt="">
-        <span class="name">MYDOS Prompt</span>
-        <span class="btn raised" aria-hidden="true">_</span>
-        <span class="btn raised" aria-hidden="true">□</span>
-        <span class="btn raised" aria-hidden="true">×</span>
-      </div>
-      <div class="menubar" aria-hidden="true">
-        <span><u>F</u>ile</span><span><u>E</u>dit</span><span><u>V</u>iew</span><span><u>H</u>elp</span>
-      </div>
-      <div class="screen sunken"><div id="terminal"></div></div>
-      <div class="statusbar">
-        <div class="grow sunken"><span id="led" class="led"></span><span id="status">Loading QEMU (about 40 MB, first visit only)…</span></div>
-        <div class="sunken">x86-64</div>
-        <div class="sunken">256 MB</div>
-        <div class="sunken">QEMU Wasm</div>
-      </div>
-    </section>
+  <section class="window raised active" id="mydos" aria-label="MYDOS">
+    <div class="titlebar">
+      <img src="favicon.svg" alt="">
+      <span class="name">MYDOS Prompt</span>
+      <button type="button" class="raised" data-min="mydos" title="Minimize">_</button>
+      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" data-min="mydos" title="Close">×</button>
+    </div>
+    <div class="menubar" aria-hidden="true">
+      <span><u>F</u>ile</span><span><u>E</u>dit</span><span><u>V</u>iew</span><span><u>H</u>elp</span>
+    </div>
+    <div class="screen sunken"><div id="terminal"></div></div>
+    <div class="statusbar">
+      <div class="grow sunken"><span id="led" class="led"></span><span id="status">Loading QEMU (about 40 MB, first visit only)…</span></div>
+      <div class="sunken">x86-64</div>
+      <div class="sunken">QEMU Wasm</div>
+    </div>
+  </section>
 
-    <section class="window raised notepad" aria-label="README.TXT">
-      <div class="titlebar">
-        <span class="glyph" style="width:14px;height:16px;border:1px solid #000" aria-hidden="true"></span>
-        <span class="name">README.TXT - Notepad</span>
-        <span class="btn raised" aria-hidden="true">_</span>
-        <span class="btn raised" aria-hidden="true">□</span>
-        <span class="btn raised" aria-hidden="true">×</span>
-      </div>
-      <div class="paper sunken">
-        <h1>MYDOS 1.0 — designed for humans and AI together</h1>
-        <p>一個從零開始用 C 寫的 64 位元 DOS 風格作業系統。上面的黑色畫面不是錄影：瀏覽器裡真的跑著一台虛擬 PC，從 BIOS、開機程式一路開進 MYDOS 核心。</p>
-        <p>點一下黑色畫面就能打字，或直接點這些指令：<br>
-          <kbd data-cmd="HELP">HELP</kbd> <kbd data-cmd="DIR \BIN">DIR \BIN</kbd> <kbd data-cmd="DEMO Ada">DEMO Ada</kbd>
-          <kbd data-cmd="GUESS">GUESS</kbd> <kbd data-cmd="LIFE">LIFE</kbd> <kbd data-cmd="CRASH">CRASH</kbd>
-          <kbd data-cmd="MEM">MEM</kbd> <kbd data-cmd="TIME">TIME</kbd></p>
-        <p>小技巧：<kbd>↑</kbd> <kbd>↓</kbd> 叫回之前的指令；<kbd>Ctrl</kbd>+<kbd>C</kbd> 結束程式；
-          <code>COPY CON NOTE.TXT</code> 打字存檔，<kbd>Ctrl</kbd>+<kbd>Z</kbd> 再 <kbd>Enter</kbd> 結束。</p>
-        <p class="muted">功能：FAT16 硬碟 · DIR/CD/COPY/DEL · 批次檔與 AUTOEXEC.BAT · 程式在 ring 3 受保護執行（CRASH 示範）· 藍色當機畫面（PANIC）。<br>
-          C 槽的變更只存在這個分頁；重新整理就會重開機。建議使用電腦版 Chrome 或 Edge。
-          · <a href="https://github.com/codinguniversefromEric/mydos-online" target="_blank" rel="noopener">GitHub</a></p>
-      </div>
-    </section>
-  </div>
+  <section class="window raised hidden" id="readme" aria-label="README.TXT">
+    <div class="titlebar">
+      <span class="glyph" aria-hidden="true"></span>
+      <span class="name">README.TXT - Notepad</span>
+      <button type="button" class="raised" data-min="readme" title="Minimize">_</button>
+      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" data-min="readme" title="Close">×</button>
+    </div>
+    <div class="paper sunken">
+      <h1>MYDOS 1.0</h1>
+      <p>一個從零開始用 C 寫的 64 位元 DOS 風格作業系統，為人類和 AI 一起設計。左邊的黑色畫面不是錄影：瀏覽器裡真的跑著一台虛擬 PC，從 BIOS 一路開進 MYDOS 核心。</p>
+      <p>點一下黑色畫面就能打字，或直接點指令：<br>
+        <kbd data-cmd="HELP">HELP</kbd> <kbd data-cmd="DIR \BIN">DIR \BIN</kbd> <kbd data-cmd="DEMO Ada">DEMO Ada</kbd>
+        <kbd data-cmd="GUESS">GUESS</kbd> <kbd data-cmd="LIFE">LIFE</kbd> <kbd data-cmd="CRASH">CRASH</kbd>
+        <kbd data-cmd="MEM">MEM</kbd> <kbd data-cmd="TIME">TIME</kbd> <kbd data-cmd="SIGN">SIGN</kbd></p>
+      <p>輸入 <code>SIGN</code> 在線上留言簿留下你的名字和一句話，每個來開機的人都看得到（桌面上的「留言簿」）。</p>
+      <p><kbd>↑</kbd> <kbd>↓</kbd> 叫回之前的指令；<kbd>Ctrl</kbd>+<kbd>C</kbd> 結束程式；<code>COPY CON NOTE.TXT</code> 打字存檔，<kbd>Ctrl</kbd>+<kbd>Z</kbd> 再 <kbd>Enter</kbd> 結束。</p>
+      <p class="muted">FAT16 硬碟 · 批次檔與 AUTOEXEC.BAT · 程式在 ring 3 受保護執行 · 藍色當機畫面（PANIC）。C 槽的變更只存在這個分頁；重新整理就會重開機。建議使用電腦版 Chrome 或 Edge。</p>
+    </div>
+  </section>
+
+  <section class="window raised hidden" id="guestbook" aria-label="留言簿">
+    <div class="titlebar">
+      <span class="glyph book" aria-hidden="true"></span>
+      <span class="name">GUESTBOOK - 留言簿</span>
+      <button type="button" class="raised" data-min="guestbook" title="Minimize">_</button>
+      <button type="button" class="raised" title="Maximize" disabled>□</button>
+      <button type="button" class="raised" data-min="guestbook" title="Close">×</button>
+    </div>
+    <div id="gb-list" class="sunken">載入中…</div>
+    <div class="gb-tip">想留言？在 MYDOS 裡輸入 <kbd data-cmd="SIGN">SIGN</kbd>，留言會出現在這裡，所有訪客都看得到。MYDOS 裡用 <kbd data-cmd="GUESTBOOK">GUESTBOOK</kbd> 也能讀（只顯示英文）。</div>
+  </section>
 </main>
 
+<div class="startmenu raised hidden" id="startmenu" role="menu">
+  <div class="side"><b>MYDOS</b> 1.0</div>
+  <ul>
+    <li><button type="button" data-open="readme"><span class="glyph" aria-hidden="true"></span>README.TXT</button></li>
+    <li><button type="button" data-open="guestbook"><span class="glyph book" aria-hidden="true"></span>留言簿</button></li>
+    <li><a href="https://github.com/codinguniversefromEric/mydos-online" target="_blank" rel="noopener"><img src="favicon.svg" alt="">原始碼（GitHub）</a></li>
+    <li><a href="https://github.com/codinguniversefromEric/mydos-online/tree/main/docs" target="_blank" rel="noopener"><span class="glyph" aria-hidden="true"></span>教學文件</a></li>
+    <hr>
+    <li><button type="button" onclick="location.reload()"><img src="favicon.svg" alt="">重新開機…</button></li>
+  </ul>
+</div>
+
 <footer class="taskbar">
-  <div class="start raised"><img src="favicon.svg" alt="">Start</div>
-  <div class="task sunken"><img src="favicon.svg" alt=""><span>MYDOS Prompt</span></div>
+  <button type="button" class="start raised" id="startbtn"><img src="favicon.svg" alt="">Start</button>
+  <button type="button" class="task raised on" data-task="mydos"><img src="favicon.svg" alt=""><span class="t">MYDOS Prompt</span></button>
+  <button type="button" class="task raised" data-task="readme"><span class="glyph" aria-hidden="true"></span><span class="t">README.TXT</span></button>
+  <button type="button" class="task raised" data-task="guestbook"><span class="glyph book" aria-hidden="true"></span><span class="t">留言簿</span></button>
   <div class="tray sunken" id="clock">--:--</div>
 </footer>
 
@@ -185,18 +239,151 @@
 <script src="coi-serviceworker.js"></script>
 <script src="vendor/xterm.js"></script>
 <script src="vendor/xterm-pty.js"></script>
+<script src="guestbook-config.js"></script>
+<script src="guestbook.js"></script>
 <script src="mydos-boot.js"></script>
 <script src="qemu/load-rom.js"></script>
 <script>
-  // 工作列時鐘
+  // ===== 工作列時鐘 =====
   (function tick() {
     const d = new Date();
-    document.getElementById('clock').textContent =
-      d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    document.getElementById('clock').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
     setTimeout(tick, 1000 * (60 - d.getSeconds()));
   })();
 
   function setLed(state) { document.getElementById('led').className = 'led' + (state ? ' ' + state : ''); }
+
+  // ===== 迷你視窗管理員：拖曳、最上層、最小化、工作列 =====
+  const desk = document.getElementById('desktop');
+  let zTop = 10;
+  function win(id) { return document.getElementById(id); }
+  function focusWin(id) {
+    document.querySelectorAll('.window').forEach((w) => w.classList.toggle('active', w.id === id));
+    win(id).style.zIndex = ++zTop;
+    syncTasks();
+  }
+  function showWin(id) {
+    const w = win(id);
+    if (!w.dataset.placed && id === 'guestbook') {            // 第一次打開：放在畫面中間偏右
+      w.classList.remove('hidden');
+      w.style.left = Math.max(0, desk.clientWidth - w.offsetWidth - 24) + 'px';
+      w.style.top = '24px';
+      w.dataset.placed = '1';
+    }
+    w.classList.remove('hidden'); clampWin(w); focusWin(id);
+  }
+  function hideWin(id) {
+    win(id).classList.add('hidden');
+    const other = [...document.querySelectorAll('.window:not(.hidden)')].pop();
+    if (other) focusWin(other.id); else syncTasks();
+  }
+  function syncTasks() {
+    document.querySelectorAll('[data-task]').forEach((b) => {
+      const w = win(b.dataset.task);
+      const on = !w.classList.contains('hidden') && w.classList.contains('active');
+      b.classList.toggle('on', on);
+      b.classList.toggle('pressed', on);
+    });
+  }
+  // 視窗不可以跑出桌面
+  function clampWin(w) {
+    const r = w.getBoundingClientRect();                 // 用實際大小（可能被縮放過）
+    const maxX = Math.max(0, desk.clientWidth - r.width);
+    const maxY = Math.max(0, desk.clientHeight - r.height);
+    w.style.left = Math.min(Math.max(0, w.offsetLeft), maxX) + 'px';
+    w.style.top  = Math.min(Math.max(0, w.offsetTop),  maxY) + 'px';
+  }
+
+  document.querySelectorAll('.window').forEach((w) => {
+    w.addEventListener('pointerdown', () => focusWin(w.id));
+    const bar = w.querySelector('.titlebar');
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      const dx = e.clientX - w.offsetLeft, dy = e.clientY - w.offsetTop;
+      bar.setPointerCapture(e.pointerId);
+      const move = (ev) => {
+        w.style.left = (ev.clientX - dx) + 'px';
+        w.style.top  = (ev.clientY - dy) + 'px';
+        clampWin(w);
+      };
+      const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); };
+      bar.addEventListener('pointermove', move);
+      bar.addEventListener('pointerup', up);
+    });
+  });
+  document.querySelectorAll('[data-min]').forEach((b) => b.addEventListener('click', () => hideWin(b.dataset.min)));
+  document.querySelectorAll('[data-task]').forEach((b) => b.addEventListener('click', () => {
+    const w = win(b.dataset.task);
+    if (w.classList.contains('hidden')) showWin(w.id);
+    else if (w.classList.contains('active')) hideWin(w.id);
+    else focusWin(w.id);
+  }));
+  document.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => {
+    closeStart();
+    showWin(b.dataset.open);
+  }));
+
+  // ===== 開始選單 =====
+  const startBtn = document.getElementById('startbtn'), startMenu = document.getElementById('startmenu');
+  function closeStart() { startMenu.classList.add('hidden'); startBtn.classList.remove('pressed'); }
+  startBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = startMenu.classList.toggle('hidden') === false;
+    startBtn.classList.toggle('pressed', open);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('#startmenu, #startbtn')) closeStart();
+  });
+
+  // ===== 版面：終端機字級自動縮放，讓 80×30 剛好放進桌面 =====
+  window.layoutDesktop = function (term) {
+    const mydos = win('mydos'), readme = win('readme');
+    const narrow = desk.clientWidth < 640;
+    const leftPad = narrow ? 4 : 96;                      // 左邊留給桌面圖示
+    const availW = desk.clientWidth - leftPad - 8;
+    const availH = desk.clientHeight - 8;
+    mydos.style.transform = '';
+    if (term) {
+      for (let fs = 16; fs >= 9; fs--) {                  // 從大到小試，找到放得下的最大字級
+        term.options.fontSize = fs;
+        if (mydos.offsetWidth <= availW && mydos.offsetHeight <= availH) break;
+      }
+    }
+    // 字縮到 9 還放不下（手機）：整個視窗等比例縮小
+    const scale = Math.min(1, availW / mydos.offsetWidth, availH / mydos.offsetHeight);
+    mydos.style.transformOrigin = '0 0';
+    mydos.style.transform = scale < 1 ? 'scale(' + scale + ')' : '';
+    const mw = mydos.offsetWidth * scale, mh = mydos.offsetHeight * scale;
+
+    // 說明視窗的寬度（先暫時顯示出來量）
+    const wasHidden = readme.classList.contains('hidden');
+    readme.style.visibility = 'hidden';
+    readme.classList.remove('hidden');
+    const rw = readme.offsetWidth;
+    readme.classList.toggle('hidden', wasHidden);
+    readme.style.visibility = '';
+    const side = !narrow && mw + 12 + rw <= availW;      // 放得下就並排
+
+    const total = side ? mw + 12 + rw : mw;
+    const x = leftPad + Math.max(0, (availW - total) / 2);
+    const y = Math.max(4, (availH - mh) / 2);
+    mydos.style.left = x + 'px';
+    mydos.style.top = y + 'px';
+    if (side) {
+      readme.classList.remove('hidden');
+      readme.style.left = (x + mw + 12) + 'px';
+      readme.style.top = y + 'px';
+    } else {
+      if (!readme.dataset.userOpened) readme.classList.add('hidden');
+      readme.style.left = Math.max(0, (desk.clientWidth - rw) / 2) + 'px';
+      readme.style.top = '12px';
+    }
+    clampWin(readme);
+    focusWin('mydos');
+  };
+  document.querySelectorAll('[data-open="readme"], [data-task="readme"]').forEach((b) =>
+    b.addEventListener('click', () => { win('readme').dataset.userOpened = '1'; }));
+  layoutDesktop(null);
 </script>
 <script type="module">
   if (!window.crossOriginIsolated) {
@@ -205,9 +392,14 @@
     const term = new Terminal({
       cols: 80, rows: 30, cursorBlink: true,
       fontFamily: '"Cascadia Mono", Consolas, "Courier New", monospace', fontSize: 15,
+      scrollback: 500,
       theme: { background: '#000000', foreground: '#c0c0c0', cursor: '#c0c0c0' },
     });
     term.open(document.getElementById('terminal'));
+    layoutDesktop(term);
+    let resizeTimer;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => layoutDesktop(term), 150); });
+    document.getElementById('mydos').addEventListener('pointerup', () => term.focus());
     term.focus();
     window.mydosTerm = term;            // 方便在開發者工具裡除錯
     const { master, slave } = openpty();
@@ -226,11 +418,25 @@
       }
     });
 
+    // SIGN：MYDOS 從序列埠送出「ESC ] 7777 ; SIGN ; 名字 ; 留言 BEL」，在這裡攔截並存進線上留言簿
+    term.parser.registerOscHandler(7777, (data) => {
+      if (!data.startsWith('SIGN;')) return false;
+      const rest = data.slice(5), cut = rest.indexOf(';');
+      if (cut < 0) return true;
+      showStatus('Guestbook: sending…');
+      Guestbook.sign(rest.slice(0, cut), rest.slice(cut + 1)).then((res) => {
+        showStatus(res.text, !res.ok);
+        if (res.ok) setLed('on');
+      });
+      return true;                                       // 已處理，不要顯示在終端機上
+    });
+
     // 說明裡的指令按鈕：替你把指令打進去
     document.querySelectorAll('kbd[data-cmd]').forEach((k) => {
       k.title = 'Run ' + k.dataset.cmd;
       k.addEventListener('click', () => {
         if (!ready) return;
+        focusWin('mydos');
         term.focus();
         term.paste(k.dataset.cmd + '\r');
       });

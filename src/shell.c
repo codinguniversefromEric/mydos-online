@@ -9,6 +9,7 @@
 #include "timer.h"
 #include "version.h"
 #include "process.h"
+#include "serial.h"
 
 #define LINE_MAX 120
 
@@ -168,6 +169,78 @@ static void cmd_echo(char *args) {
     else                           kprintf("%s\n", args);
 }
 
+// =====================================================================
+//  留言簿（網頁版會跟所有訪客共用）
+//
+//  C:\GUEST\BOOK.TXT 的格式：兩行標題，接著一則一則留言，最新的在最上面。
+//  網頁版開機前會把線上的留言填進這個檔案；SIGN 除了寫進本機的檔案，
+//  也會從序列埠送出一個看不見的 OSC 跳脫序列，網頁收到後存進線上資料庫。
+// =====================================================================
+#define GUESTBOOK_PATH "\\GUEST\\BOOK.TXT"
+#define GUESTBOOK_HEAD "MYDOS GUESTBOOK - type SIGN to leave a message\n" \
+                       "==============================================\n"
+
+static void cmd_guestbook(char *args) {
+    (void)args;
+    char tmp[32];
+    strcpy(tmp, GUESTBOOK_PATH);
+    cmd_type(tmp);
+}
+
+static void cmd_sign(char *args) {
+    (void)args;
+    char name[21], msg[121];
+    kprintf("Leave a message in the MYDOS guestbook. Everyone visiting the web\n"
+            "version can read it, so please be nice. (Ctrl+C to cancel)\n\n");
+    kprintf("Your name: ");
+    if (read_line(name, 20) == 0) { kprintf("Cancelled.\n"); return; }
+    for (char *p = name; *p; p++) if (*p == ';') *p = ',';   // ; 是給網頁的分隔符號
+    kprintf("Message:   ");
+    if (read_line(msg, 120) == 0) { kprintf("Cancelled.\n"); return; }
+
+    // 1. 寫進本機的 BOOK.TXT：插在標題後面（最新的在最上面）
+    struct datetime t;
+    rtc_read(&t);
+    char entry[200];
+    ksnprintf(entry, sizeof(entry), "%04d-%02d-%02d %02d:%02d  %s\n  %s\n\n",
+              t.year, t.month, t.day, t.hour, t.minute, name, msg);
+    void *old = 0;
+    uint32_t old_size = 0;
+    if (fs_read_file(GUESTBOOK_PATH, &old, &old_size)) old_size = 0;
+    const char *body = old ? old : "";
+    uint32_t used = 0;
+    while (used < old_size && body[used] != 26) used++;        // ^Z 之後是預留的空白區
+    size_t head_len = strlen(GUESTBOOK_HEAD);
+    size_t skip = (used >= head_len && !strncmp(body, GUESTBOOK_HEAD, head_len)) ? head_len : 0;
+    if (!strncmp(body + skip, "(No messages", 12)) {          // 第一則留言：拿掉「還沒有留言」那行
+        while (skip < used && body[skip] != '\n') skip++;
+        while (skip < used && body[skip] == '\n') skip++;
+    }
+
+    size_t cap = head_len + strlen(entry) + used - skip;
+    char *out = kmalloc(cap + 1);
+    strcpy(out, GUESTBOOK_HEAD);
+    strcat(out, entry);
+    memcpy(out + head_len + strlen(entry), body + skip, used - skip);
+    if (old) kfree(old);
+    struct fs_info info;
+    if (fs_stat("\\GUEST", &info)) fs_mkdir("\\GUEST");
+    int r = fs_write_file(GUESTBOOK_PATH, out, cap);
+    kfree(out);
+    if (r) { kprintf("Could not save: %s\n", fs_strerror(r)); return; }
+
+    // 2. 告訴網頁：ESC ] 7777 ; SIGN ; 名字 ; 留言 BEL
+    //    這是 OSC 跳脫序列，終端機不會顯示；一般的終端機（例如 WSL）會直接忽略它
+    serial_puts("\x1b]7777;SIGN;");
+    serial_puts(name);
+    serial_puts(";");
+    serial_puts(msg);
+    serial_puts("\x07");
+
+    kprintf("\nThanks, %s! Saved to C:\\GUEST\\BOOK.TXT.\n", name);
+    kprintf("On the web version it is also sent to the online guestbook.\n");
+}
+
 static void cmd_rem(char *args)  { (void)args; }
 static void cmd_goto(char *args) { char *l; next_arg(args, &l); batch_goto(l); }
 
@@ -295,6 +368,8 @@ static const struct command commands[] = {
     { "DEL",    "Delete files (wildcards OK)",            cmd_del    },
     { "REN",    "Rename: REN old new",                    cmd_ren    },
     { "VOL",    "Show disk label and space",              cmd_vol    },
+    { "SIGN",   "Sign the guestbook (shared online)",     cmd_sign   },
+    { "GUESTBOOK", "Read the guestbook",                  cmd_guestbook },
     { "ECHO",   "Print text; ECHO OFF in batch files",    cmd_echo   },
     { "REM",    "Comment (batch files)",                  cmd_rem    },
     { "PAUSE",  "Wait for a key",                         cmd_pause  },
@@ -319,7 +394,7 @@ static const struct command commands[] = {
 static void cmd_help(char *args) {
     (void)args;
     for (unsigned i = 0; i < NCOMMANDS; i++)
-        if (commands[i].help) kprintf("  %-8s%s\n", commands[i].name, commands[i].help);
+        if (commands[i].help) kprintf("  %-10s%s\n", commands[i].name, commands[i].help);
 }
 
 // =====================================================================

@@ -64,12 +64,22 @@ user-programs:
 # ---- 硬碟映像：32 MB FAT16，放 disk/ 的內容和 \BIN 裡的程式 ----
 # mtools 遇到「已存在」會停下來問問題（在終端機裡看不到就像當掉），
 # 所以 BIN 先檢查再建，並用 </dev/null 讓它不能等輸入
-disk.img: user-programs $(shell find disk -type f 2>/dev/null)
+# 留言簿：32 KB 的預留檔，標題後面用 ^Z（0x1A，DOS 的檔案結尾記號）填滿。
+# 網頁版開機前會在映像裡找到這塊，就地填進線上的留言（見 web/guestbook.js）。
+build/BOOK.TXT:
+	@mkdir -p build
+	printf 'MYDOS GUESTBOOK - type SIGN to leave a message\n==============================================\n(No messages here yet. On the web version, messages from every visitor appear here.)\n\n' > $@
+	head -c 32768 /dev/zero | tr '\000' '\032' >> $@
+	truncate -s 32768 $@
+
+disk.img: user-programs build/BOOK.TXT $(shell find disk -type f 2>/dev/null)
 	rm -f $@
 	mkfs.fat -F 16 -n MYDOS -C $@ 32768 >/dev/null
 	mcopy -s -i $@ disk/* ::/
 	mdir -i $@ ::/BIN >/dev/null 2>&1 || mmd -i $@ ::/BIN </dev/null
 	mcopy -o -i $@ user/build/*.EXE ::/BIN/ </dev/null
+	mmd -i $@ ::/GUEST </dev/null
+	mcopy -o -i $@ build/BOOK.TXT ::/GUEST/BOOK.TXT </dev/null
 
 # -rtc base=localtime：讓 RTC 顯示本地時間（台灣時間），不是 UTC
 run: mydos.iso disk.img

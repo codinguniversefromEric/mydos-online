@@ -67,6 +67,10 @@ make serve-web                          # 本機預覽：http://localhost:8000
 
 之後每次 push 到 `main`，`.github/workflows/pages.yml` 都會自動重新建置並部署。詳見 [網頁版教學](docs/web-tutorial.md)。
 
+### 線上留言簿
+
+網頁版的訪客可以在 MYDOS 裡打 `SIGN` 留言，所有人用 `GUESTBOOK` 或桌面的「留言簿」都看得到。需要一個免費的 Supabase 資料庫，設定方式見 [留言簿教學](docs/guestbook-setup.md)。沒設定也能正常使用，只是留言只存在自己的分頁裡。
+
 ## 試試看
 
 ```text
@@ -77,6 +81,7 @@ GUESS                   猜數字
 LIFE                    生命遊戲動畫，按任意鍵結束
 CRASH                   程式故意寫壞記憶體，看系統怎麼保護自己
 COPY CON NOTE.TXT       打字存檔，Ctrl+Z 再 Enter 結束
+SIGN                    在留言簿留言（網頁版所有訪客都看得到）
 ```
 
 ## 專案結構
@@ -114,5 +119,6 @@ docs/               每個里程碑的教學
 | [7](docs/milestone7-tutorial.md) | v0.7 | ring 3、系統呼叫、ELF、範例程式 |
 | [8](docs/milestone8-tutorial.md) | v1.0 | 批次檔、AUTOEXEC.BAT、指令歷史 |
 | [網頁版](docs/web-tutorial.md) | v1.0 | 序列埠鍵盤、ANSI 跳脫碼、QEMU Wasm、GitHub Pages |
+| [留言簿](docs/guestbook-setup.md) | v1.0 | OSC 跳脫序列、就地修改磁碟映像、Supabase 與 Row Level Security |
 
 每個里程碑都是一個 git commit，可以用 `git log` 和 `git show` 看每一步改了什麼。

@@ -25,6 +25,9 @@ Module['locateFile'] = function (path) {
 };
 Module['mainScriptUrlOrBlob'] = new URL('qemu/out.js', document.baseURI).href;
 
+// 留言簿：一開始就去抓，跟下載 QEMU 同時進行，不拖慢開機
+const guestbookReady = (typeof Guestbook !== 'undefined') ? Guestbook.load() : Promise.resolve([]);
+
 Module['preRun'] = Module['preRun'] || [];
 Module['preRun'].push(function (mod) {
     if (Module['ENVIRONMENT_IS_PTHREAD']) return;
@@ -37,9 +40,14 @@ Module['preRun'].push(function (mod) {
                 const unzipped = r.body.pipeThrough(new DecompressionStream('gzip'));
                 return new Response(unzipped).arrayBuffer();
             })
-            .then((buf) => {
+            .then(async (buf) => {
+                const bytes = new Uint8Array(buf);
+                if (name === 'disk.img' && typeof Guestbook !== 'undefined') {
+                    await guestbookReady;
+                    Guestbook.patchDisk(bytes);         // 把線上留言填進 C:\GUEST\BOOK.TXT
+                }
                 Module['FS_createPath']('/', 'mydos', true, true);
-                Module['FS_createDataFile']('/mydos', name, new Uint8Array(buf), true, true, true);
+                Module['FS_createDataFile']('/mydos', name, bytes, true, true, true);
                 Module['removeRunDependency']('mydos:' + name);
             })
             .catch((e) => showStatus('Failed to load ' + name + ': ' + e.message, true));
